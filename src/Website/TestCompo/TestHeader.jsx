@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../Components/Home/mainLogo.jpeg';
 import { AuthAction } from '../../CustomStateManage/OrgUnits/AuthState';
@@ -6,8 +6,29 @@ import './TestHeader.css';
 
 const TestHeader = () => {
     const [showAccount, setShowAccount] = useState(false);
+    const [userData, setUserData] = useState(null);
+    const dropdownRef = useRef(null);
     const isAuthenticated = AuthAction.getState('auth')?.isAuthenticated;
     const navigate = useNavigate();
+
+    useEffect(() => {
+        // Set user data if authenticated
+        if (isAuthenticated) {
+            setUserData({
+                name: AuthAction.getState('auth')?.name || 'Account'
+            });
+        }
+
+        // Handle click outside dropdown
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setShowAccount(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isAuthenticated]);
 
     const handleBookingsClick = () => {
         if (isAuthenticated) navigate('/bookings');
@@ -15,6 +36,8 @@ const TestHeader = () => {
     };
 
     const handleLogOut = () => {
+        AuthAction.updateState({ isAuthenticated: false });
+        navigate('/');
         window.location.reload();
     };
 
@@ -28,9 +51,13 @@ const TestHeader = () => {
                 </Link>
 
                 {/* Navigation Actions */}
-                <div className="nav-actions">
+                <div className="nav-actions" ref={dropdownRef}>
                     {/* Bookings Button */}
-                    <button className="nav-btn" onClick={handleBookingsClick}>
+                    <button 
+                        className="nav-btn bookings-btn" 
+                        onClick={handleBookingsClick}
+                        aria-label="My Bookings"
+                    >
                         <i className="ri-calendar-line"></i>
                         <span>My Bookings</span>
                     </button>
@@ -39,10 +66,12 @@ const TestHeader = () => {
                     <div 
                         className={`account-dropdown-trigger ${showAccount ? 'active' : ''}`}
                         onClick={() => setShowAccount(!showAccount)}
+                        aria-haspopup="true"
+                        aria-expanded={showAccount}
                     >
                         <i className="ri-user-line"></i>
-                        <span>{isAuthenticated ? 'Account' : 'Login'}</span>
-                        <i className="ri-arrow-down-s-line dropdown-arrow"></i>
+                        <span>{isAuthenticated ? userData?.name || 'Account' : 'Login'}</span>
+                        <i className={`ri-arrow-down-s-line dropdown-arrow ${showAccount ? 'rotate' : ''}`}></i>
                     </div>
 
                     {/* Dropdown Menu */}
@@ -50,20 +79,41 @@ const TestHeader = () => {
                         <div className="account-dropdown">
                             {!isAuthenticated ? (
                                 <>
-                                    <Link to="/login" className="dropdown-item">
+                                    <Link 
+                                        to="/login" 
+                                        className="dropdown-item"
+                                        onClick={() => setShowAccount(false)}
+                                    >
                                         <i className="ri-login-box-line"></i>
                                         <span>Login</span>
                                     </Link>
-                                    <Link to="/register" className="dropdown-item highlight">
+                                    <Link 
+                                        to="/register" 
+                                        className="dropdown-item highlight"
+                                        onClick={() => setShowAccount(false)}
+                                    >
                                         <i className="ri-user-add-line"></i>
                                         <span>Sign Up</span>
                                     </Link>
                                 </>
                             ) : (
-                                <button className="dropdown-item" onClick={handleLogOut}>
-                                    <i className="ri-logout-box-r-line"></i>
-                                    <span>Logout</span>
-                                </button>
+                                <>
+                                    <Link 
+                                        to="/account" 
+                                        className="dropdown-item"
+                                        onClick={() => setShowAccount(false)}
+                                    >
+                                        <i className="ri-account-circle-line"></i>
+                                        <span>My Account</span>
+                                    </Link>
+                                    <button 
+                                        className="dropdown-item logout-btn"
+                                        onClick={handleLogOut}
+                                    >
+                                        <i className="ri-logout-box-r-line"></i>
+                                        <span>Logout</span>
+                                    </button>
+                                </>
                             )}
                         </div>
                     )}

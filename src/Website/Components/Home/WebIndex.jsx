@@ -1,26 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './WebIndex.css';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import WebHeader from '../../Layout/Header';
+import TestHeader from '../../TestCompo/TestHeader';
 import { AuthAction } from '../../../CustomStateManage/OrgUnits/AuthState';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { popularRoutes } from './PopularRoutes';
+import { tourismHighlights } from './PopularRoutes';
 
 const WebIndex = () => {
   AuthAction.initiateAuthState();
   const today = new Date().toISOString().split('T')[0];
 
+  const [dateTrigger, setDateTrigger] = useState(false);
   const navigate = useNavigate();
   const [storeLocation, setStoreLocation] = useState({
     source: 'Guwahati',
-    destination: 'jorhat',
+    destination: 'Jorhat',
     date: today
   });
 
   const [activeField, setActiveField] = useState(null);
   const [searchData, setSearchData] = useState([]);
-  const [selectedData, setSelectedData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (dateTrigger) {
+      handleSubmit();
+      setDateTrigger(false);
+    }
+  }, [storeLocation.date]);
 
   const handleSearch = async (type, value) => {
     setActiveField(type);
@@ -31,7 +41,7 @@ const WebIndex = () => {
         const res = await axios.post(`/api/location-search?type=search&query=${value}`);
         setSearchData(res.data.data);
       } catch (err) {
-        console.error(`${type} error:`, err);
+        console.error(`${type} search error:`, err);
       }
     } else {
       setSearchData([]);
@@ -45,194 +55,305 @@ const WebIndex = () => {
     }
   };
 
-  const setTomorrowDate = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const day = String(tomorrow.getDate()).padStart(2, '0');
-    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-    const year = String(tomorrow.getFullYear()).slice(-2);
-    const formatted = `${day}.${month}.${year}`;
-    setStoreLocation(prev => ({ ...prev, date: formatted }));
-  };
-
   const handleSubmit = async () => {
-    const { source, destination, date } = storeLocation;
-    AuthAction.updateState({ date_of_journey: date });
-
+    let { source, destination, date } = storeLocation;
+    
     if (!source || !destination || !date) {
       alert("Please select date of journey");
       return;
     }
 
     if (source === destination) {
-      alert("source and destination can't be the same");
+      alert("Source and destination can't be the same");
       return;
     }
 
-    const payload = { source, destination, date };
-    setSelectedData(payload);
+    // Convert date format if needed
+    if (date.includes('/')) {
+      const [dd, mm, yy] = date.split('/');
+      date = `20${yy}-${mm}-${dd}`;
+    }
 
+    setIsLoading(true);
     try {
-      const res = await axios.post('/api/search-bus', payload);
+      const res = await axios.post('/api/search-bus', { source, destination, date });
+      
       if (res.data.status === 200) {
         AuthAction.updateState({
           origin: source,
           destination,
           date_of_journey: date,
-          parent_route: res.data.data[0].parent_route,
+          parent_route: res.data.data[0]?.parent_route || '',
         });
         navigate('/bus-search-result', { state: res.data.data });
-      } else if (res.data.message_status === true) {
+      } else if (res.data.message_status) {
         alert(res.data.message);
       }
-    } catch (e) {
-      console.log(e);
+    } catch (error) {
+      console.error("Search error:", error);
+      alert("Failed to search buses. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleTmrw = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const formatted = tomorrow.toISOString().split('T')[0];
-    setStoreLocation(prev => ({ ...prev, date: formatted }));
-    handleSubmit(formatted);
+  const handleToday = () => {
+    const date = new Date();
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    setStoreLocation(prev => ({ ...prev, date: `${day}/${month}/${year}` }));
+    setDateTrigger(true);
+  };
+
+  const handleTomorrow = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    setStoreLocation(prev => ({ ...prev, date: `${day}/${month}/${year}` }));
+    setDateTrigger(true);
+  };
+
+  // Handle popular route click
+  const handlePopularRouteClick = (from, to) => {
+    setStoreLocation({
+      source: from,
+      destination: to,
+      date: today
+    });
+    setDateTrigger(true);
+  };
+
+  const swapLocations = () => {
+    setStoreLocation(prev => ({
+      ...prev,
+      source: prev.destination,
+      destination: prev.source
+    }));
   };
 
   return (
     <>
-      <WebHeader />
-      <section id="hero">
-        <div id="heroBanner">
-          <div className="container">
-            <div className="heroText">
-              <h1>No. 1 bus booking app</h1>
-            </div>
+      <TestHeader/>
+      <div className="booking-container">
+        {/* Hero Banner */}
+        <div className="hero-banner">
+          <div className="hero-content">
+            <h1 className="hero-title">No. 1 Bus Booking Platform</h1>
+            <p className="hero-subtitle">Travel across Assam with comfort and ease</p>
           </div>
         </div>
 
-        <div className="searchBar">
-          <div className="container fieldsWrapper">
-            <h4>NR BUSS QUICK & EASY BOOKING</h4>
-            <div className="inputFieldsBar">
-              <div className="generalField">
-
-                {/* From */}
-                <div className="field b" id="swapRel">
-                  <div className="fieldItems">
-                    <i className="ri-bus-line"></i>
-                    <div className="labels" style={{ position: 'relative' }}>
-                      <label htmlFor="from">From</label>
-                      <input
-                        className="homeinputBorder"
-                        type="text"
-                        value={storeLocation.source}
-                        onChange={e => handleSearch('source', e.target.value)}
-                        placeholder="Roing"
-                        onFocus={() => setActiveField('source')}
-                        style={{ padding: '10px' }}
-                      />
-                      {activeField === 'source' && searchData.length > 0 && (
-                        <div className="dropdownBox">
-                          {searchData.map(item => (
-                            <div
-                              key={item.id}
-                              onClick={() => selectSearchData(item)}
-                              className="dropdownItem"
-                            >
-                              {item.location}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="swap">
-                    <i className="ri-arrow-left-line" style={{ color: 'white' }}></i>
-                    <i className="ri-arrow-right-line" style={{ color: 'white' }}></i>
-                  </div>
+        {/* Search Form */}
+        <div className="search-form-container">
+          <div className="search-form">
+            <h2 className="form-title">Book Your Bus Journey</h2>
+            
+            <div className="form-fields">
+              {/* From Field */}
+              <div className={`form-field ${activeField === 'source' ? 'active' : ''}`}>
+                <div className="field-icon">
+                  <i className="ri-map-pin-line"></i>
                 </div>
-
-                {/* To */}
-                <div className="field b">
-                  <div className="fieldItems">
-                    <i className="ri-bus-line"></i>
-                    <div className="labels" style={{ position: 'relative' }}>
-                      <label htmlFor="to">To</label>
-                      <input
-                        className="homeinputBorder"
-                        type="text"
-                        value={storeLocation.destination}
-                        onChange={e => handleSearch('destination', e.target.value)}
-                        placeholder="Nagaon"
-                        onFocus={() => setActiveField('destination')}
-                        style={{ padding: '10px', borderRadius: '8px' }}
-                      />
-                      {activeField === 'destination' && searchData.length > 0 && (
-                        <div className="dropdownBox">
-                          {searchData.map(item => (
-                            <div
-                              key={item.id}
-                              onClick={() => selectSearchData(item)}
-                              className="dropdownItem"
-                            >
-                              {item.location}
-                            </div>
-                          ))}
+                <div className="field-input">
+                  <label>From</label>
+                  <input
+                    type="text"
+                    value={storeLocation.source}
+                    onChange={(e) => handleSearch('source', e.target.value)}
+                    onFocus={() => setActiveField('source')}
+                    placeholder="Enter source city"
+                  />
+                  {activeField === 'source' && searchData.length > 0 && (
+                    <div className="search-dropdown">
+                      {searchData.map(item => (
+                        <div 
+                          key={item.id} 
+                          className="dropdown-item"
+                          onClick={() => selectSearchData(item)}
+                        >
+                          {item.location}
                         </div>
-                      )}
+                      ))}
                     </div>
-                  </div>
-                </div>
-
-                {/* Date */}
-                <div className="field">
-                  <div className="fieldItems">
-                    <i className="ri-calendar-2-line"></i>
-                    <div className="labels">
-                      <label htmlFor="journeyDate">Date of Journey</label>
-                      <DatePicker
-                        selected={(() => {
-                          const [d, m, y] = storeLocation.date.split('/');
-                          const today = new Date();
-                          if (!d || !m || !y) return today;
-                          return new Date(2000 + parseInt(y), parseInt(m) - 1, parseInt(d));
-                        })()}
-                        onChange={date => {
-                          const day = String(date.getDate()).padStart(2, '0');
-                          const month = String(date.getMonth() + 1).padStart(2, '0');
-                          const year = String(date.getFullYear()).slice(-2);
-                          setStoreLocation(prev => ({ ...prev, date: `${day}/${month}/${year}` }));
-                        }}
-                        dateFormat="dd/MM/yy"
-                        placeholderText="dd/mm/yy"
-                        className="homeinputBorder"
-                        popperPlacement="bottom-start"
-                        style={{ padding: '10px', borderRadius: '8px', width: '100%' }}
-                      />
-                    </div>
-                    <div className="desktopday day">
-                      <span className="tmrwText" onClick={handleSubmit}>Today</span>
-                    </div>
-                  </div>
-                  <div className="mobileday day">
-                    <span className="todayText" onClick={handleSubmit}>Today</span>
-                  </div>
+                  )}
                 </div>
               </div>
 
-              {/* Button */}
-              <div className="searchBus" id="bus">
-                <button onClick={handleSubmit}>
-                  <i className="ri-search-line" style={{ color: 'white' }}></i>
-                  Search buses
+              {/* Swap Button */}
+              <button className="swap-button" onClick={swapLocations}>
+                <i className="ri-arrow-left-right-line"></i>
+              </button>
+
+              {/* To Field */}
+              <div className={`form-field ${activeField === 'destination' ? 'active' : ''}`}>
+                <div className="field-icon">
+                  <i className="ri-map-pin-line"></i>
+                </div>
+                <div className="field-input">
+                  <label>To</label>
+                  <input
+                    type="text"
+                    value={storeLocation.destination}
+                    onChange={(e) => handleSearch('destination', e.target.value)}
+                    onFocus={() => setActiveField('destination')}
+                    placeholder="Enter destination city"
+                  />
+                  {activeField === 'destination' && searchData.length > 0 && (
+                    <div className="search-dropdown">
+                      {searchData.map(item => (
+                        <div 
+                          key={item.id} 
+                          className="dropdown-item"
+                          onClick={() => selectSearchData(item)}
+                        >
+                          {item.location}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Date Field */}
+              <div className="form-field date-field">
+                <div className="field-icon">
+                  <i className="ri-calendar-line"></i>
+                </div>
+                <div className="field-input">
+                  <label>Date of Journey</label>
+                  <DatePicker
+                    selected={(() => {
+                      const [d, m, y] = storeLocation.date.split('/');
+                      const today = new Date();
+                      if (!d || !m || !y) return today;
+                      return new Date(2000 + parseInt(y), parseInt(m) - 1, parseInt(d));
+                    })()}
+                    onChange={date => {
+                      const day = String(date.getDate()).padStart(2, '0');
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const year = String(date.getFullYear()).slice(-2);
+                      setStoreLocation(prev => ({ ...prev, date: `${day}/${month}/${year}` }));
+                    }}
+                    dateFormat="dd/MM/yy"
+                    placeholderText="Select date"
+                    minDate={new Date()}
+                    className="date-picker-input"
+                  />
+                </div>
+              </div>
+
+              {/* Quick Date Buttons */}
+              <div className="quick-date-buttons">
+                <button className="date-button" onClick={handleToday}>
+                  Today
+                </button>
+                <button className="date-button" onClick={handleTomorrow}>
+                  Tomorrow
                 </button>
               </div>
             </div>
+
+            {/* Search Button */}
+            <button 
+              className="search-button"
+              onClick={handleSubmit}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <span className="loading-spinner"></span>
+              ) : (
+                <>
+                  <i className="ri-search-line"></i>
+                  Search Buses
+                </>
+              )}
+            </button>
           </div>
         </div>
 
-        <section id="bannerImage"></section>
-      </section>
+        {/* Popular Routes Section - RedBus style */}
+        <div className="popular-routes-container">
+          <div className="container">
+            <h2 className="section-title">Popular Bus Routes in Assam</h2>
+            <div className="popular-routes-grid">
+              {popularRoutes.map(route => (
+                <div 
+                  key={route.id} 
+                  className="route-card"
+                  onClick={() => handlePopularRouteClick(route.from, route.to)}
+                >
+                  <div className="route-image" style={{ backgroundImage: `url(${route.image})` }}>
+                    <div className="route-overlay"></div>
+                    <div className="route-info">
+                      <h3>{route.from} to {route.to}</h3>
+                      <p>{route.duration} • From {route.price}</p>
+                    </div>
+                  </div>
+                  <div className="route-footer">
+                    <span>{route.operator}</span>
+                    <button className="book-now-btn">Book Now</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Assam Tourism Highlights */}
+        <div className="tourism-highlights">
+          <div className="container">
+            <h2 className="section-title">Explore Assam's Treasures</h2>
+            <div className="tourism-grid">
+              {tourismHighlights.map(highlight => (
+                <div key={highlight.id} className="tourism-card">
+                  <div 
+                    className="tourism-image" 
+                    style={{ backgroundImage: `url(${highlight.image})` }}
+                  >
+                    <div className="tourism-overlay"></div>
+                  </div>
+                  <div className="tourism-content">
+                    <h3>{highlight.title}</h3>
+                    <p>{highlight.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Why Choose Us Section */}
+        <div className="why-choose-us">
+          <div className="container">
+            <h2 className="section-title">Why Choose Assam Bus Travel?</h2>
+            <div className="features-grid">
+              <div className="feature-card">
+                <i className="ri-shield-check-line"></i>
+                <h3>Safe Travel</h3>
+                <p>GPS tracked buses with trained drivers</p>
+              </div>
+              <div className="feature-card">
+                <i className="ri-24-hours-line"></i>
+                <h3>24/7 Support</h3>
+                <p>Always available customer care</p>
+              </div>
+              <div className="feature-card">
+                <i className="ri-wallet-3-line"></i>
+                <h3>Best Prices</h3>
+                <p>Guaranteed lowest fares</p>
+              </div>
+              <div className="feature-card">
+                <i className="ri-bus-line"></i>
+                <h3>Modern Fleet</h3>
+                <p>AC and Non-AC buses available</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </>
   );
 };

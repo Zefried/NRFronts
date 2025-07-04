@@ -13,9 +13,9 @@ import './assets/vendor/jquery-easing/jquery.easing.min.js';
 import './assets/js/sb-admin-2.min.js';
 // ends here
 
-// axios.defaults.baseURL = 'http://127.0.0.1:8000/';
+axios.defaults.baseURL = 'http://127.0.0.1:8000/';
 
-axios.defaults.baseURL = 'https://nrserver.sbs/'
+// axios.defaults.baseURL = 'https://nrserver.sbs/'
 
 
 

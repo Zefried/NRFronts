@@ -23,19 +23,17 @@ const SignupModal = () => {
       try {
           const res = await axios.post('/api/user-login', {
             phone: form.phone,
-            password: form.password,
           });
 
           if (res.data.status === 200) {
            
-            const { id, name, gender } = res.data.data.userData;
+            const { id, name } = res.data.data.userData;
             const { access_token } = res.data.data.loginData;
 
             AuthAction.updateState({
               isAuthenticated: true,
               userId: id,
               name: name,
-              gender: gender,
               token: `${access_token}`,
             });
 
@@ -68,10 +66,10 @@ const SignupModal = () => {
           <label htmlFor="phone">Phone</label>
           <input type="tel" id="phone" name="phone" value={form.phone} onChange={handleChange} required placeholder="Enter phone" />
 
-          <label htmlFor="password">Enter Name</label>
-          <input type="password" id="password" name="password" value={form.password} onChange={handleChange} required placeholder="Enter password" />
+          {/* <label htmlFor="password">Enter Name</label>
+          <input type="password" id="password" name="password" value={form.password} onChange={handleChange} required placeholder="Enter password" /> */}
 
-          <button type="submit" className="submit-btn">Sign Up</button>
+          <button type="submit" className="submit-btn">One Click Login</button>
         </form>
       </div>
     </div>

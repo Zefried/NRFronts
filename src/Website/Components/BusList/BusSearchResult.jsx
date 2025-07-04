@@ -1,13 +1,26 @@
-import React from 'react';
-import WebHeader from '../../Layout/Header';
+import React, { useEffect } from 'react';
+import TestHeader from '../../TestCompo/TestHeader';
 import './BusSearchResult.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthAction } from '../../../CustomStateManage/OrgUnits/AuthState';
 import axios from 'axios';
 
+
 const BusSearchResult = () => {
+
   const { state: data } = useLocation();
   const navigate = useNavigate();
+  const {operator_id, parent_route} = AuthAction.getState('auth');
+  
+  const fetchFair = async () => {
+    let payload = { operator_id:operator_id, parent_route:parent_route }
+    const res = await axios.post('/api/fetch-fair', payload)
+    console.log(res.data.data);
+  }
+
+  useEffect(()=>{
+    fetchFair();
+  },[])
 
   const to12Hour = (timeStr) => {
     if (!timeStr) return '';
@@ -20,23 +33,21 @@ const BusSearchResult = () => {
   const toDuration = (min) => `${Math.floor(min / 60)}h ${min % 60}m`;
 
   const generateLayout = async (operator_id) => {
-      const {date_of_journey, parent_route} = AuthAction.getState('auth');
-      let payload = {
-        type:'generate',
-        operator_id:operator_id,
-        date:date_of_journey,
-        parent_route:parent_route,
-      }
-     
-      return await axios.post('/api/generate-layout', payload)
-      
-  }
+    const { date_of_journey, parent_route } = AuthAction.getState('auth');
+    let payload = {
+      type: 'generate',
+      operator_id: operator_id,
+      date: date_of_journey,
+      parent_route: parent_route,
+    };
+    
+    return await axios.post('/api/generate-layout', payload);
+  };
 
   const handleNavigate = async (index) => {
-    
     let operator_id = data[index]?.operator_id;
     const res = await generateLayout(operator_id);
-    AuthAction.updateState({operator_id:operator_id});
+    AuthAction.updateState({ operator_id: operator_id });
     
     if (res.data.status == 200) {
       navigate('/select-seat');
@@ -45,88 +56,90 @@ const BusSearchResult = () => {
 
   return (
     <>
-      <WebHeader />
-      <div className="searchBussection">
-        <div className="locationText">
+      <TestHeader />
+
+      <div className="search-bus-section">
+        <div className="location-header">
           <div className="container">
             {data.length > 0 ? (
-              <>
-                <p className="basicText">Bus Search Result</p>
-                <span className="basicText">{data.length} buses</span>
-              </>
+              <div className="result-header">
+                <h1 className="result-title">Bus Search Results</h1>
+                <span className="result-count">{data.length} buses found</span>
+              </div>
             ) : (
-              <p className="basicText">No buses found</p>
+              <h1 className="result-title">No buses found</h1>
             )}
           </div>
         </div>
 
-        <div className="container">
-          <div className="filterWrapper">
-            <div className="filterBus">
-              <h4 className="basicText">Filter buses</h4>
-              <hr />
-              <div className="buttons">
-                <button>Seater</button>
-                <button>Sleeper</button>
-                <button>AC</button>
-                <button>Non AC</button>
+        <div className="container bus-results-container">
+          <div className="results-wrapper">
+            <div className="filters-panel">
+              <h4 className="filters-title">Filter buses</h4>
+              <div className="filters-divider"></div>
+              <div className="filter-buttons">
+                <button className="filter-btn">Seater</button>
+                <button className="filter-btn">Sleeper</button>
+                <button className="filter-btn">AC</button>
+                <button className="filter-btn">Non AC</button>
               </div>
             </div>
 
-            <div className="busCards">
+            <div className="bus-listings">
               {data.map((item, index) => (
-                <div key={index}>
-                  <div className="busCard bc" onClick={() => handleNavigate(index)}>
-                    <div className="busName">
-                      <div className="busWrapper">
-                        <div className="busHeading">
-                          <p className="basicText">Operator</p>
-                          <span className="basicText">
-                            {item.bus_name} {item.ac_status ? 'A/C' : 'Non A/C'} Seater
-                          </span>
-                        </div>
-
-                        <div className="rating">
-                          <div className="star">
-                            <i className="ri-star-fill" style={{ color: 'white' }} /> 4.5
-                          </div>
-                          <span className="basicText">241</span>
-                        </div>
-
-                        <div className="duration d-flex gap-3">
-                          <div className="startTime">
-                            <p className="basicText">Start Time</p>
-                            <p className="fw-bold basicText">{to12Hour(item.boarding_time)}</p>
-                            <span className="basicText">{toDuration(item.estimated_duration)}</span>
-                          </div>
-                          <div className="stopTime">
-                            <p className="basicText">Stop Time</p>
-                            <p className="fw-bold basicText">{to12Hour(item.dropping_time)}</p>
-                            <span className="basicText">Available</span>
-                          </div>
-                        </div>
+                <div className="bus-card" key={index} onClick={() => handleNavigate(index)}>
+                  <div className="bus-card-header">
+                    <div className="bus-info">
+                      <div className="bus-meta">
+                        <p className="bus-type">Operator</p>
+                        <h3 className="bus-name">
+                          {item.bus_name} {item.ac_status ? 'A/C' : 'Non A/C'} Seater
+                        </h3>
                       </div>
 
-                     <div className="price" >
-
-                        <p className="fw-bold basicText">₹ {item.fare.final}</p>
-                        <span
-                          className="basicText mob-text"
-                        >
-                          Original: ₹ {item.fare.actual}
-                        </span>
+                      <div className="bus-rating">
+                        <div className="rating-badge">
+                          <i className="ri-star-fill" /> 4.5
+                        </div>
+                        <span className="rating-count">241 reviews</span>
                       </div>
                     </div>
 
-                    <div className="busPhoto mt-5">
-                      <div className="bdpoints d-flex gap-3">
-                        <p><a href="#" className="text-black basicText">Boarding/Dropping</a></p>
-                        <p><a href="#" className="text-black basicText">Bus Photos</a></p>
+                    <div className="timing-info">
+                      <div className="time-block">
+                        <p className="time-label">Departure</p>
+                        <p className="time-value">{to12Hour(item.boarding_time)}</p>
+                        <span className="duration">{toDuration(item.estimated_duration)}</span>
                       </div>
-                      <div className="seatButton bc">
-                        <button id="viewSeat" className="basicText">View Seats</button>
+                      <div className="time-divider">
+                        <div className="route-line"></div>
+                        <i className="ri-bus-2-line route-icon"></i>
+                      </div>
+                      <div className="time-block">
+                        <p className="time-label">Arrival</p>
+                        <p className="time-value">{to12Hour(item.dropping_time)}</p>
+                        <span className="availability">Available</span>
                       </div>
                     </div>
+
+                    <div className="price-info">
+                      <p className="current-price">₹{item.fare.final}</p>
+                      <span className="original-price">₹{item.fare.actual}</span>
+                    </div>
+                  </div>
+
+                  <div className="bus-card-footer">
+                    <div className="bus-actions">
+                      <button className="action-link">
+                        <i className="ri-map-pin-line"></i> Boarding Points
+                      </button>
+                      <button className="action-link">
+                        <i className="ri-camera-line"></i> Bus Photos
+                      </button>
+                    </div>
+                    <button className="view-seats-btn">
+                      View Seats <i className="ri-arrow-right-line"></i>
+                    </button>
                   </div>
                 </div>
               ))}
